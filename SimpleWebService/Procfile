@@ -1,1 +1,0 @@
-web:    java -cp target/classes/com/mycompany/simplewebservice:target/dependency/* Main
