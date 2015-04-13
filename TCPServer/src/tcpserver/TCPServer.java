@@ -41,6 +41,16 @@ public class TCPServer {
         }
     }
     
+    public JSONObject mixitem(JSONObject clientObject) throws JSONException {
+        if(clientObject.getString("token").equalsIgnoreCase(token)) {
+            return sql.mixitem(userID, clientObject.getInt("item1"), clientObject.getInt("item2"));
+        } else {
+            JSONObject responseJSON = new JSONObject();
+            responseJSON.put("status", "error");
+            return responseJSON;
+        }
+    }
+    
     public static void main(String[] args) throws Exception {
         int port = 6789;
         TCPServer server = new TCPServer(port);
@@ -75,6 +85,10 @@ public class TCPServer {
                 outToClient.writeBytes(responseJSON.toString() + "\n");
             } else if(method.equalsIgnoreCase("inventory")) {
                 JSONObject responseJSON = server.inventory(clientObject);
+                System.out.println(responseJSON.toString());
+                outToClient.writeBytes(responseJSON.toString() + "\n");
+            } else if(method.equalsIgnoreCase("mixitem")) {
+                JSONObject responseJSON = server.mixitem(clientObject);
                 System.out.println(responseJSON.toString());
                 outToClient.writeBytes(responseJSON.toString() + "\n");
             }

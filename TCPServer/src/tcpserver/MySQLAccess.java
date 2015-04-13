@@ -74,9 +74,8 @@ public class MySQLAccess {
             }
         } catch (SQLException e) {
             e.printStackTrace();
+            response.put("status", "error");
         }
-        
-        response.put("status", "error");
         close();
         return response;
     }
@@ -107,10 +106,9 @@ public class MySQLAccess {
                 return response;
             }
         } catch (SQLException e) {
+            response.put("status", "error");
             e.printStackTrace();
         }
-        
-        response.put("status", "error");
         close();
         return response;
     }
@@ -138,14 +136,81 @@ public class MySQLAccess {
                 array.put(resultSet.getString("crystal"));
                 array.put(resultSet.getString("stone"));
                 response.put("inventory", array);
-            } else {
-                response.put("status", "error");
             }
         } catch (SQLException e) {
+            response.put("status", "error");
             e.printStackTrace();
         }
         close();
         
+        return response;
+    }
+    
+    public JSONObject mixitem(int userID, int item1, int item2) throws JSONException {
+        open();
+        JSONObject response = new JSONObject();
+        try {
+            // Cek apakah kedua item tersebut  dapat digabungkan
+            preparedStatement = connect.prepareStatement("SELECT * FROM mixitem WHERE "
+                                                        + "item1=" + item1 + " AND "
+                                                        + "item2=" + item2 + ";");
+            resultSet = preparedStatement.executeQuery();
+            
+            if(resultSet.first()) {
+                int item_result = resultSet.getInt("item_result");
+                ResultSet resultSet2;
+                String itemName1 = null, itemName2 = null, itemNameResult = null;
+                
+                // Cek apa nama dari item 1
+                preparedStatement = connect.prepareStatement("SELECT * FROM items WHERE "
+                                                        + "id_item=" + item1 + ";");
+                resultSet2 = preparedStatement.executeQuery();
+                if(resultSet2.first())
+                    itemName1 = resultSet2.getString("item_name").toLowerCase();
+                
+                // Cek apa nama dari item 2
+                preparedStatement = connect.prepareStatement("SELECT * FROM items WHERE "
+                                                        + "id_item=" + item2 + ";");
+                resultSet2 = preparedStatement.executeQuery();
+                if(resultSet2.first())
+                    itemName2 = resultSet2.getString("item_name").toLowerCase();
+                
+                // Cek apa nama dari item hasil
+                preparedStatement = connect.prepareStatement("SELECT * FROM items WHERE "
+                                                        + "id_item=" + item_result + ";");
+                resultSet2 = preparedStatement.executeQuery();
+                if(resultSet2.first())
+                    itemNameResult = resultSet2.getString("item_name").toLowerCase();
+                
+                // Cek apakah pengguna memiliki jumlah barang yang cukup (masing - masing 3)
+                preparedStatement = connect.prepareStatement("SELECT * FROM inventory WHERE "
+                                                        + "id_user=" + userID + " AND "
+                                                        + itemName1 + ">=3 AND "
+                                                        + itemName2 + ">=3;");
+                resultSet2 = preparedStatement.executeQuery();
+                
+                if(resultSet2.first()) {
+                    preparedStatement = connect.prepareStatement("UPDATE inventory SET "
+                                                            + itemName1 + "=" + itemName1 + "-3, "
+                                                            + itemName2 + "=" + itemName2 + "-3, "
+                                                            + itemNameResult + "=" + itemNameResult + "+1 "
+                                                            + "WHERE id_user=" + userID + ";");
+                    preparedStatement.executeUpdate();
+                    response.put("status", "ok");
+                    response.put("item", item_result);
+                } else {
+                    response.put("status", "fail");
+                    response.put("description", "insufficient item");
+                }
+            } else {
+                response.put("status", "fail");
+                response.put("description", "item mixture is not available");
+            }
+        } catch (SQLException e) {
+            response.put("status", "error");
+            e.printStackTrace();
+        }
+        close();
         return response;
     }
     
