@@ -9,26 +9,42 @@ public class TCPServer {
     public Socket connectionSocket;
     public MySQLAccess sql;
     public String request;
+    public String token;
+    public int userID;
     
-    public TCPServer() throws IOException {
+    public TCPServer(int port) throws IOException {
         System.out.println("Server running! Waiting for connection...");
-        serverSocket = new ServerSocket(6789);
+        serverSocket = new ServerSocket(port);
         connectionSocket = serverSocket.accept();
         sql = new MySQLAccess();
     }
     
-    public String register(JSONObject clientObject) throws JSONException {
+    public JSONObject signup(JSONObject clientObject) throws JSONException {
         String username = clientObject.getString("username");
         String password = clientObject.getString("password");
-        String response = sql.register(username, password).toString();
-        
-        return response;
+        return sql.signup(username, password);
+    }
+    
+    public JSONObject login(JSONObject clientObject) throws JSONException {
+        String username = clientObject.getString("username");
+        String password = clientObject.getString("password");
+        return sql.login(username, password);
+    }
+    
+    public JSONObject inventory(JSONObject clientObject) throws JSONException {
+        if(clientObject.getString("token").equalsIgnoreCase(token)) {
+            return sql.inventory(userID);
+        } else {
+            JSONObject responseJSON = new JSONObject();
+            responseJSON.put("status", "error");
+            return responseJSON;
+        }
     }
     
     public static void main(String[] args) throws Exception {
-        
-        TCPServer server = new TCPServer();
-        System.out.println("User connected to " + server.serverSocket + ", " + server.connectionSocket);
+        int port = 6789;
+        TCPServer server = new TCPServer(port);
+        System.out.println("User connected to " + server.serverSocket.getLocalSocketAddress() + ", " + server.connectionSocket.getLocalSocketAddress());
         
         while(true)
         {
@@ -41,9 +57,26 @@ public class TCPServer {
             String method = clientObject.getString("method");
             
             if(method.equalsIgnoreCase("signup")) {
-                String response = server.register(clientObject);
-                System.out.println(response);
-                outToClient.writeBytes(response + "\n");
+                JSONObject responseJSON = server.signup(clientObject);
+                System.out.println(responseJSON.toString());
+                if(responseJSON.getString("status").equalsIgnoreCase("ok")) {
+                    server.sql.createInventory(clientObject.getString("username"));
+                }
+                outToClient.writeBytes(responseJSON.toString() + "\n");
+            } else if(method.equalsIgnoreCase("login")) {
+                JSONObject responseJSON = server.login(clientObject);
+                System.out.println(responseJSON.toString());
+                if(responseJSON.getString("status").equalsIgnoreCase("ok")) {
+                    server.userID = server.sql.getUserId(clientObject.getString("username"));
+                    server.token = responseJSON.getString("token");
+                    System.out.println("ID    : " + server.userID);
+                    System.out.println("token : " + server.token);
+                }
+                outToClient.writeBytes(responseJSON.toString() + "\n");
+            } else if(method.equalsIgnoreCase("inventory")) {
+                JSONObject responseJSON = server.inventory(clientObject);
+                System.out.println(responseJSON.toString());
+                outToClient.writeBytes(responseJSON.toString() + "\n");
             }
         }
     }
